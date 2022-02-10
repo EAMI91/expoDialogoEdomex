@@ -200,7 +200,7 @@ server <- function(input, output, session) {
                 aes(xmin = as.numeric(factor(var))-.4, xmax = as.numeric(factor(var))+.4, ymin = 1,ymax = 1+pct, fill = cat)) +
       geom_hline(yintercept = 1, linetype = "dotted")+
       coord_flip() +
-      labs(x = NULL, y = NULL) + theme_minimal() + theme(legend.position = "bottom")
+      labs(x = NULL, y = NULL, fill = NULL) + theme_minimal() + theme(legend.position = "bottom")
     
   })
 }
