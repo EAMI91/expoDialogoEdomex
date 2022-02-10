@@ -91,6 +91,8 @@ server <- function(input, output, session) {
   
   output$mapa <- renderLeaflet({
     leaflet(municipio) %>% addProviderTiles("CartoDB.Positron") %>% 
+      addPolygons(data = entidad, stroke = F, color = "gray50", group = "entidad") %>%
+      hideGroup("entidad") %>% 
       addPolygons(stroke = T,weight = .5, color = ~pal(categoria),
                   label = ~NOMGEO, layerId = ~NOMGEO, group = "municipio",
                   highlightOptions = highlightOptions(weight = 2, 
@@ -122,11 +124,11 @@ server <- function(input, output, session) {
     
     bbox <- st_bbox(slctMun())
     mapa %>% 
-      clearGroup("municipio") %>%
+      hideGroup("municipio") %>%
       clearGroup("seleccionMun") %>%
       clearGroup("seleccionAgeb") %>%
       clearGroup("Diálogos") %>%
-      addPolygons(data = entidad, stroke = F, color = "gray50", group = "entidad") %>%
+      showGroup("entidad") %>%
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addPolygons(data = slctMun(),  fill = F,
                   stroke = T,weight = 3, color = "black", group = "seleccionMun") %>% 
@@ -141,14 +143,13 @@ server <- function(input, output, session) {
     updateSelectInput(session,"municipio", selected = "")
     shinyjs::hide("regresar")
     bbox <- st_bbox(entidad)
-    mapa %>% clearGroup("entidad") %>% clearGroup("seleccionMun") %>% 
+    mapa %>% 
+      hideGroup("entidad") %>% 
+      showGroup("municipio") %>% 
+      clearGroup("seleccionMun") %>% 
       clearGroup("seleccionAgeb") %>% 
       clearGroup("seleccionDialog") %>% 
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
-      addPolygons(data = municipio, stroke = T,weight = .5, color = ~pal(categoria),
-                  label = ~NOMGEO, layerId = ~NOMGEO, group = "municipio",
-                  highlightOptions = highlightOptions(weight = 2, 
-                                                      bringToFront = T, color = "#db4471", opacity = .9)) %>% 
       addCircleMarkers(data = dialogos, radius = 1, clusterOptions = markerClusterOptions(), group = "Diálogos")
     
   })
@@ -199,7 +200,7 @@ server <- function(input, output, session) {
                 aes(xmin = as.numeric(factor(var))-.4, xmax = as.numeric(factor(var))+.4, ymin = 1,ymax = 1+pct, fill = cat)) +
       geom_hline(yintercept = 1, linetype = "dotted")+
       coord_flip() +
-      labs(x = NULL, y = NULL) + theme_minimal()
+      labs(x = NULL, y = NULL) + theme_minimal() + theme(legend.position = "bottom")
     
   })
 }
