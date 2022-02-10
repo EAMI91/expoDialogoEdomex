@@ -95,8 +95,9 @@ server <- function(input, output, session) {
                   label = ~NOMGEO, layerId = ~NOMGEO, group = "municipio",
                   highlightOptions = highlightOptions(weight = 2, 
                                                       bringToFront = T, color = "#db4471", opacity = 1)) %>% 
-      addLegend(pal = pal, values = ~categoria) #%>% 
-    # addLayersControl(overlayGroups = c("entidad"))
+      addCircleMarkers(data = dialogos, radius = 1, clusterOptions = markerClusterOptions(), group = "Diálogos") %>% 
+      addLegend(pal = pal, values = ~categoria) %>% 
+      addLayersControl(overlayGroups = c("Diálogos"))
   })
   
   mapa <- leafletProxy("mapa")
@@ -124,13 +125,16 @@ server <- function(input, output, session) {
       clearGroup("municipio") %>%
       clearGroup("seleccionMun") %>%
       clearGroup("seleccionAgeb") %>%
+      clearGroup("Diálogos") %>%
       addPolygons(data = entidad, stroke = F, color = "gray50", group = "entidad") %>%
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addPolygons(data = slctMun(),  fill = F,
                   stroke = T,weight = 3, color = "black", group = "seleccionMun") %>% 
       addPolygons(data = select(),  stroke = T, weight = 1, color = ~pal(categoria),
                   label = ~CVE_AGEB, 
-                  group = "seleccionAgeb")
+                  group = "seleccionAgeb") %>% 
+      addCircleMarkers(data = slctDiag(), radius = 1, clusterOptions = markerClusterOptions(),
+                       group = "Diálogos")
   })
   
   observeEvent(input$regresar,{
@@ -139,11 +143,13 @@ server <- function(input, output, session) {
     bbox <- st_bbox(entidad)
     mapa %>% clearGroup("entidad") %>% clearGroup("seleccionMun") %>% 
       clearGroup("seleccionAgeb") %>% 
+      clearGroup("seleccionDialog") %>% 
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addPolygons(data = municipio, stroke = T,weight = .5, color = ~pal(categoria),
                   label = ~NOMGEO, layerId = ~NOMGEO, group = "municipio",
                   highlightOptions = highlightOptions(weight = 2, 
-                                                      bringToFront = T, color = "#db4471", opacity = .9))
+                                                      bringToFront = T, color = "#db4471", opacity = .9)) %>% 
+      addCircleMarkers(data = dialogos, radius = 1, clusterOptions = markerClusterOptions(), group = "Diálogos")
     
   })
   
