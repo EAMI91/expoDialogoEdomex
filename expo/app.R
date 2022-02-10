@@ -40,8 +40,7 @@ ui <- tagList(
         menuItem("Mapa",selected = F,
                  tabName = "mapa",
                  icon = icon("search")
-        ),
-        selectInput("municipio",NULL, choices = c("Todo" = "", sort(municipio$NOMGEO))) 
+        )
       )
     ),
     body = dashboardBody(
@@ -50,19 +49,18 @@ ui <- tagList(
         tabItem(tabName = "mapa", 
                 tagList(
                   fluidRow(
-                    column(6,
+                    column(7,
                            hidden(actionButton("regresar","Regresar"))
-                    )#,
-                    # column(width = 6,
-                    #        
-                    # )
+                    ),
+                    column(width = 5,
+                           selectInput("municipio",NULL, choices = c("Todo" = "", sort(municipio$NOMGEO))) 
+                    )
                   ),
-                  
                   hr(),
                   fluidRow(
                     column(7, class = "shadowBox",
                            shinycssloaders::withSpinner(
-                             leafletOutput("mapa",height = 700)
+                             leafletOutput("mapa",height = 600)
                            )
                     ),
                     column(5,
@@ -76,7 +74,7 @@ ui <- tagList(
                            fluidRow(
                              column(12, class = "shadowBox",
                                     shinycssloaders::withSpinner(
-                                      plotOutput("dif",height = 400)
+                                      plotOutput("dif",height = 200)
                                     )
                              )
                            )
@@ -98,7 +96,7 @@ server <- function(input, output, session) {
                   highlightOptions = highlightOptions(weight = 2, 
                                                       bringToFront = T, color = "#db4471", opacity = 1)) %>% 
       addLegend(pal = pal, values = ~categoria) #%>% 
-      # addLayersControl(overlayGroups = c("entidad"))
+    # addLayersControl(overlayGroups = c("entidad"))
   })
   
   mapa <- leafletProxy("mapa")
@@ -116,7 +114,7 @@ server <- function(input, output, session) {
     ageb %>% filter(CVE_MUN == slctMun()$CVE_MUN)
   })
   
-
+  
   
   observeEvent(select(),{
     shinyjs::show("regresar")
@@ -137,6 +135,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$regresar,{
     updateSelectInput(session,"municipio", selected = "")
+    shinyjs::hide("regresar")
     bbox <- st_bbox(entidad)
     mapa %>% clearGroup("entidad") %>% clearGroup("seleccionMun") %>% 
       clearGroup("seleccionAgeb") %>% 
@@ -145,7 +144,7 @@ server <- function(input, output, session) {
                   label = ~NOMGEO, layerId = ~NOMGEO, group = "municipio",
                   highlightOptions = highlightOptions(weight = 2, 
                                                       bringToFront = T, color = "#db4471", opacity = .9))
-      
+    
   })
   
   output$barras <- renderPlot({
@@ -158,7 +157,7 @@ server <- function(input, output, session) {
         coord_flip() +
         scale_fill_identity() +
         scale_y_continuous(labels = scales::percent) +
-        labs(x = "Porcentaje de AGEB", y = NULL) +
+        labs(y = "Porcentaje de AGEB", x = NULL) +
         theme_minimal()
     } else{
       municipio %>% as_tibble %>% count(categoria) %>%
@@ -167,25 +166,25 @@ server <- function(input, output, session) {
         ggchicklet::geom_chicklet(width = .7, alpha = .5) +
         coord_flip() +
         scale_fill_identity() +
-        labs(x = "Municipios", y = NULL) +
+        labs(y = "Municipios", x = NULL) +
         theme_minimal()
     }
     
   })
   
-  slctDiag <- eventReactive(input$Municipio,{
-    req(inpput$municipio)
-    dialogos %>% filter(NOMGEO == input$municipio)
+  slctDiag <- eventReactive(input$municipio,{
+    auxi <- if(input$municipio == "") dialogos else dialogos %>% filter(NOMGEO == input$municipio)
+    return(auxi)
   })
   
   output$dif <- renderPlot({
-    # validate(need(nrow(slctDiag())>0,
-    #               message = glue::glue("No se han realizado diálogos en {input$municipio}")
-    #               ))
-    auxi <- if(input$municipio == "") dialogos else dialogos %>% filter(NOMGEO == input$municipio) 
+    validate(need(nrow(slctDiag())>0,
+                  message = glue::glue("No se han realizado diálogos en {input$municipio}")
+    ))
     
-    aux <- auxi %>% as_tibble  %>% dplyr::select(contains("a_")) %>% names %>%  
-      map_df(~auxi %>% as_tibble %>% count(across(.x)) %>% mutate(pct = n/sum(n),var = .x) %>% 
+    
+    aux <- slctDiag() %>% as_tibble  %>% dplyr::select(contains("a_")) %>% names %>%  
+      map_df(~slctDiag() %>% as_tibble %>% count(across(.x)) %>% mutate(pct = n/sum(n),var = .x) %>% 
                rename(cat = 1)) %>% mutate(pct = if_else(cat == "Mala",-pct,pct))
     aux %>% filter(cat != "Regular") %>% group_by(var) %>% mutate(nps = sum(pct)) %>% 
       ggplot() +
