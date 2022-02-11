@@ -193,14 +193,36 @@ server <- function(input, output, session) {
     aux <- slctDiag() %>% as_tibble  %>% dplyr::select(contains("a_")) %>% names %>%  
       map_df(~slctDiag() %>% as_tibble %>% count(across(.x)) %>% mutate(pct = n/sum(n),var = .x) %>% 
                rename(cat = 1)) %>% mutate(pct = if_else(cat == "Mala",-pct,pct))
-    aux %>% filter(cat != "Regular") %>% group_by(var) %>% mutate(nps = sum(pct)) %>% 
+
+    aux %>% filter(cat != "Regular") %>% group_by(var) %>%
+      mutate(nps = case_when(cat == "Buena"~pct, T~0), nps = sum(nps)) %>%
+      ungroup() %>% 
+      arrange(desc(nps)) %>% 
       ggplot() +
-      ggchicklet::geom_chicklet(aes(x = reorder(var,nps), y = pct, fill = cat)) +
+      ggchicklet::geom_chicklet(aes(x = fct_reorder(var,nps), y = pct, fill = cat),
+                                alpha= .7,
+                                width = .6) +
       geom_rect(data = aux %>% filter(cat == "Regular"), 
-                aes(xmin = as.numeric(factor(var))-.4, xmax = as.numeric(factor(var))+.4, ymin = 1,ymax = 1+pct, fill = cat)) +
+                aes(xmin = as.numeric(factor(var))-.3,
+                    xmax = as.numeric(factor(var))+.3, 
+                    ymin = 1,ymax = 1+pct, fill = cat),
+                alpha= .7, show.legend = F) +
       geom_hline(yintercept = 1, linetype = "dotted")+
+      scale_fill_manual(values = c("Mala" = "#DE6400",
+                                   "Buena" = "#023047",
+                                   "Regular" = "gray"))+
+      scale_x_discrete(labels=c("a_1" = "De 18 a 29", "a_2" = "De 30 a 39",
+                               "a_3" = "De 40 a 49", "a_4" = "De 50 a 59",
+                               "a_5" = "60 y más"))+
+      scale_y_continuous(labels=scales::percent_format(accuracy = 1))+
       coord_flip() +
-      labs(x = NULL, y = NULL, fill = NULL) + theme_minimal() + theme(legend.position = "bottom")
+      labs(x = NULL, y = NULL, fill = NULL, title = "Opinión por grupos de edad") + 
+      theme_minimal() + theme(legend.position = "bottom",
+                              panel.grid.major.y= element_blank())+
+      geom_hline(yintercept = 0, color = "#FFFFFF", size= .6)+
+      geom_hline(yintercept = 0, color = "gray", size= .6)+
+      geom_hline(yintercept = 1, color = "#FFFFFF", size = 1.2)+
+      geom_hline(yintercept = 1, color = "#323232", linetype = "dotted", size = .7)
     
   })
 }
