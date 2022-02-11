@@ -16,7 +16,7 @@ library(tidyverse)
 
 ageb <- rgdal::readOGR(dsn="data/15a.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("grupo 1", "grupo 2", "grupo 3"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
+  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
 
 cat_pct <- ageb %>% as_tibble %>% count(categoria) %>% mutate(pct = n/sum(n))
 
@@ -25,10 +25,10 @@ entidad <- rgdal::readOGR(dsn="data/15ent.shp",encoding = "CP1252") %>%
 
 municipio <- rgdal::readOGR(dsn="data/15mun.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("grupo 1", "grupo 2", "grupo 3"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
+  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
 
 dialogos <- st_read("data/dialogos.shp")
-pal <- colorFactor(c("#03045e", "#ff5400", "#ffc300"), c("grupo 1", "grupo 2", "grupo 3"))
+pal <- colorFactor(c( "#023047", "#FB8500", "#219EBC"), c("Bajo", "Medio", "Alto"))
 
 ui <- tagList(
   
@@ -159,22 +159,24 @@ server <- function(input, output, session) {
       select() %>% as_tibble %>% count(categoria) %>% mutate(color = pal(categoria),
                                                              pct = n/sum(n)) %>% 
         ggplot(aes(x = reorder(categoria,n), y = pct)) + 
-        ggchicklet::geom_chicklet(aes(fill = color), width = .7, alpha = .5) + 
+        ggchicklet::geom_chicklet(aes(fill = color), width = .5, alpha = .5) + 
         geom_errorbar(data = cat_pct, aes(ymin = pct, ymax =pct )) +
         coord_flip() +
         scale_fill_identity() +
         scale_y_continuous(labels = scales::percent) +
-        labs(y = "Porcentaje de AGEB", x = NULL) +
-        theme_minimal()
+        labs(y = "Porcentaje de AGEB", x = NULL, title =  "Índice de rezago social") +
+        theme_minimal()+
+        theme(panel.grid.major.y= element_blank())
     } else{
       municipio %>% as_tibble %>% count(categoria) %>%
         mutate(color = pal(categoria)) %>% 
         ggplot(aes(x = reorder(categoria, n), y = n, fill = color)) +
-        ggchicklet::geom_chicklet(width = .7, alpha = .5) +
+        ggchicklet::geom_chicklet(width = .5, alpha = .5) +
         coord_flip() +
         scale_fill_identity() +
-        labs(y = "Municipios", x = NULL) +
-        theme_minimal()
+        labs(y = "Municipios", x = NULL, title =  "Índice de rezago social") +
+        theme_minimal()+
+        theme(panel.grid.major.y= element_blank())
     }
     
   })
