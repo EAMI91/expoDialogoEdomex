@@ -40,7 +40,8 @@ ui <- tagList(
         menuItem("Mapa",selected = F,
                  tabName = "mapa",
                  icon = icon("search")
-        )
+        ),
+        hidden(actionButton("regresar","Regresar"))
       )
     ),
     body = dashboardBody(
@@ -49,10 +50,10 @@ ui <- tagList(
         tabItem(tabName = "mapa", 
                 tagList(
                   fluidRow(
-                    column(7,
-                           hidden(actionButton("regresar","Regresar"))
-                    ),
-                    column(width = 5,
+                    # column(7,
+                    #        
+                    # ),
+                    column(width = 5,offset = 7,
                            selectInput("municipio",NULL, choices = c("Todo" = "", sort(municipio$NOMGEO))) 
                     )
                   ),
@@ -148,7 +149,6 @@ server <- function(input, output, session) {
       showGroup("municipio") %>% 
       clearGroup("seleccionMun") %>% 
       clearGroup("seleccionAgeb") %>% 
-      clearGroup("seleccionDialog") %>% 
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addCircleMarkers(data = dialogos, radius = 1, clusterOptions = markerClusterOptions(), group = "Diálogos")
     
@@ -193,12 +193,15 @@ server <- function(input, output, session) {
     aux <- slctDiag() %>% as_tibble  %>% dplyr::select(contains("a_")) %>% names %>%  
       map_df(~slctDiag() %>% as_tibble %>% count(across(.x)) %>% mutate(pct = n/sum(n),var = .x) %>% 
                rename(cat = 1)) %>% mutate(pct = if_else(cat == "Mala",-pct,pct))
+    
+    rectangulo <- if((aux %>% filter(cat == "Regular") %>% nrow) > 0) geom_rect(data = aux %>% filter(cat == "Regular"), 
+                                                                                aes(xmin = as.numeric(factor(var))-.4, 
+                                                                                    xmax = as.numeric(factor(var))+.4, ymin = 1,ymax = 1+pct, fill = cat)) else NULL
     aux %>% filter(cat != "Regular") %>% group_by(var) %>% mutate(nps = sum(pct)) %>% 
       ggplot() +
       ggchicklet::geom_chicklet(aes(x = reorder(var,nps), y = pct, fill = cat)) +
-      geom_rect(data = aux %>% filter(cat == "Regular"), 
-                aes(xmin = as.numeric(factor(var))-.4, xmax = as.numeric(factor(var))+.4, ymin = 1,ymax = 1+pct, fill = cat)) +
-      geom_hline(yintercept = 1, linetype = "dotted")+
+      rectangulo +
+      geom_hline(yintercept = 1, linetype = "dotted") +
       coord_flip() +
       labs(x = NULL, y = NULL, fill = NULL) + theme_minimal() + theme(legend.position = "bottom")
     
