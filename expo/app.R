@@ -13,10 +13,16 @@ library(sf)
 library(shinyjs)
 library(shinydashboard)
 library(tidyverse)
-
+library(shinyWidgets)
+censo <- read_csv("data/censo.csv")
+# censo %>% filter(NOM_LOC %in% c("Total AGEB urbana","Total del municipio")) %>% select(MUN, AGEB, NOM_LOC, POBTOT, TVIVPARHAB) %>%
+#   write_excel_csv("data/censo.csv")
 ageb <- rgdal::readOGR(dsn="data/15a.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
+  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.))) %>% 
+  left_join(censo %>% filter(NOM_LOC == "Total AGEB urbana") %>% 
+                     transmute(CVE_MUN = MUN, CVE_AGEB = AGEB, POBTOT, TVIVPARHAB))
+
 
 cat_pct <- ageb %>% as_tibble %>% count(categoria) %>% mutate(pct = n/sum(n))
 
@@ -25,7 +31,9 @@ entidad <- rgdal::readOGR(dsn="data/15ent.shp",encoding = "CP1252") %>%
 
 municipio <- rgdal::readOGR(dsn="data/15mun.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
+  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.))) %>% 
+  left_join(censo %>% filter(NOM_LOC == "Total del municipio") %>% 
+              transmute(CVE_MUN = MUN, POBTOT, TVIVPARHAB))
 
 dialogos <- st_read("data/dialogos.shp")
 pal <- colorFactor(c( "#023047", "#FB8500", "#219EBC"), c("Bajo", "Medio", "Alto"))
@@ -40,7 +48,8 @@ ui <- tagList(
         menuItem("Mapa",selected = F,
                  tabName = "mapa",
                  icon = icon("search")
-        )
+        ),
+        hidden(actionButton("regresar","Regresar"))
       )
     ),
     body = dashboardBody(
@@ -48,10 +57,11 @@ ui <- tagList(
       tabItems(
         tabItem(tabName = "mapa", 
                 tagList(
+                    
                   fluidRow(
                     column(7,
-                           hidden(actionButton("regresar","Regresar"))
-                    ),
+                           progressBar(id = "progreso", value = nrow(dialogos), total = round(sum(as.numeric(municipio$TVIVPARHAB))*.01), 
+                                       status = "primary", display_pct = TRUE, striped = TRUE, title = "Progreso")),
                     column(width = 5,
                            selectInput("municipio",NULL, choices = c("Todo" = "", sort(municipio$NOMGEO))) 
                     )
@@ -108,6 +118,10 @@ server <- function(input, output, session) {
     updateSelectInput(session,"municipio", selected = input$mapa_shape_click)
   })
   
+  observeEvent(slctDiag(),{
+    updateProgressBar(session, "progreso", value = nrow(slctDiag()), total = round(sum(as.numeric(slctMun()$TVIVPARHAB))*.01))
+  })
+  
   slctMun <- eventReactive(input$municipio,{
     req(input$municipio)
     municipio %>% filter(NOMGEO == input$municipio)
@@ -122,25 +136,40 @@ server <- function(input, output, session) {
   observeEvent(select(),{
     shinyjs::show("regresar")
     
+    
     bbox <- st_bbox(slctMun())
+    content <- glue::glue("<b> Municipio: </b> {input$municipio} <br>
+                          <b> Viviendas habitadas: </b> {scales::comma(as.numeric(slctMun()$TVIVPARHAB))} <br>
+                          <b> Población total: </b> {scales::comma(as.numeric(slctMun()$POBTOT))} <br>
+                          <b> Número de Diálogos: </b> {nrow(slctDiag())} <br>
+                          <b> Conocimiento: </b> {scales::percent(runif(1))}
+                          ")
     mapa %>% 
       hideGroup("municipio") %>%
       clearGroup("seleccionMun") %>%
       clearGroup("seleccionAgeb") %>%
       clearGroup("Diálogos") %>%
+      clearGroup("texto") %>%
       showGroup("entidad") %>%
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addPolygons(data = slctMun(),  fill = F,
                   stroke = T,weight = 3, color = "black", group = "seleccionMun") %>% 
       addPolygons(data = select(),  stroke = T, weight = 1, color = ~pal(categoria),
-                  label = ~CVE_AGEB, 
+                  label = ~CVE_AGEB, popup = ~glue::glue("<b> AGEB: </b> {CVE_AGEB} <br>
+                          <b> Viviendas habitadas: </b> {scales::comma(as.numeric(TVIVPARHAB))} <br>
+                          <b> Población total: </b> {scales::comma(as.numeric(POBTOT))}
+                          "),
                   group = "seleccionAgeb") %>% 
       addCircleMarkers(data = slctDiag(), radius = 1, clusterOptions = markerClusterOptions(),
-                       group = "Diálogos")
+                       group = "Diálogos") %>% 
+      addPopups(mean(c(bbox[[1]],bbox[[3]])), bbox[[4]], content,
+                options = popupOptions(closeButton = FALSE),group = "texto"
+      )
   })
   
   observeEvent(input$regresar,{
     updateSelectInput(session,"municipio", selected = "")
+    updateProgressBar(session, "progreso", value = nrow(dialogos), total = round(sum(as.numeric(municipio$TVIVPARHAB))*.01))
     shinyjs::hide("regresar")
     bbox <- st_bbox(entidad)
     mapa %>% 
@@ -148,7 +177,7 @@ server <- function(input, output, session) {
       showGroup("municipio") %>% 
       clearGroup("seleccionMun") %>% 
       clearGroup("seleccionAgeb") %>% 
-      clearGroup("seleccionDialog") %>% 
+      clearGroup("texto") %>%
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addCircleMarkers(data = dialogos, radius = 1, clusterOptions = markerClusterOptions(), group = "Diálogos")
     
@@ -196,6 +225,12 @@ server <- function(input, output, session) {
       map_df(~slctDiag() %>% as_tibble %>% count(across(.x)) %>% mutate(pct = n/sum(n),var = .x) %>% 
                rename(cat = 1)) %>% mutate(pct = if_else(cat == "Mala",-pct,pct))
 
+rectangulo <- if((aux %>% filter(cat == "Regular") %>% nrow) > 0) geom_rect(data = aux %>% filter(cat == "Regular"), 
+                aes(xmin = as.numeric(factor(var))-.3,
+                    xmax = as.numeric(factor(var))+.3, 
+                    ymin = 1,ymax = 1+pct, fill = cat),
+                alpha= .7, show.legend = F) else NULL
+
     aux %>% filter(cat != "Regular") %>% group_by(var) %>%
       mutate(nps = case_when(cat == "Buena"~pct, T~0), nps = sum(nps)) %>%
       ungroup() %>% 
@@ -204,11 +239,7 @@ server <- function(input, output, session) {
       ggchicklet::geom_chicklet(aes(x = fct_reorder(var,nps), y = pct, fill = cat),
                                 alpha= .7,
                                 width = .6) +
-      geom_rect(data = aux %>% filter(cat == "Regular"), 
-                aes(xmin = as.numeric(factor(var))-.3,
-                    xmax = as.numeric(factor(var))+.3, 
-                    ymin = 1,ymax = 1+pct, fill = cat),
-                alpha= .7, show.legend = F) +
+      rectangulo +
       geom_hline(yintercept = 1, linetype = "dotted")+
       scale_fill_manual(values = c("Mala" = "#DE6400",
                                    "Buena" = "#023047",
