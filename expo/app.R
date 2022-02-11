@@ -13,10 +13,15 @@ library(sf)
 library(shinyjs)
 library(shinydashboard)
 library(tidyverse)
+library(shinyWidgets)
+censo <- read_csv("data/censo.csv")
 
 ageb <- rgdal::readOGR(dsn="data/15a.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("grupo 1", "grupo 2", "grupo 3"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
+  mutate(categoria = sample(c("grupo 1", "grupo 2", "grupo 3"),prob = c(.2,.55,.35), replace = T, size = nrow(.))) %>% 
+  left_join(censo %>% filter(NOM_LOC == "Total AGEB urbana") %>% 
+                     transmute(CVE_MUN = MUN, CVE_AGEB = AGEB, POBTOT, TVIVPARHAB))
+
 
 cat_pct <- ageb %>% as_tibble %>% count(categoria) %>% mutate(pct = n/sum(n))
 
@@ -25,7 +30,9 @@ entidad <- rgdal::readOGR(dsn="data/15ent.shp",encoding = "CP1252") %>%
 
 municipio <- rgdal::readOGR(dsn="data/15mun.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("grupo 1", "grupo 2", "grupo 3"),prob = c(.2,.55,.35), replace = T, size = nrow(.)))
+  mutate(categoria = sample(c("grupo 1", "grupo 2", "grupo 3"),prob = c(.2,.55,.35), replace = T, size = nrow(.))) %>% 
+  left_join(censo %>% filter(NOM_LOC == "Total del municipio") %>% 
+              transmute(CVE_MUN = MUN, POBTOT, TVIVPARHAB))
 
 dialogos <- st_read("data/dialogos.shp")
 pal <- colorFactor(c("#03045e", "#ff5400", "#ffc300"), c("grupo 1", "grupo 2", "grupo 3"))
@@ -49,11 +56,12 @@ ui <- tagList(
       tabItems(
         tabItem(tabName = "mapa", 
                 tagList(
+                    
                   fluidRow(
-                    # column(7,
-                    #        
-                    # ),
-                    column(width = 5,offset = 7,
+                    column(7,
+                           progressBar(id = "progreso", value = nrow(dialogos), total = round(sum(as.numeric(municipio$TVIVPARHAB))*.01), 
+                                       status = "primary", display_pct = TRUE, striped = TRUE, title = "Progreso")),
+                    column(width = 5,
                            selectInput("municipio",NULL, choices = c("Todo" = "", sort(municipio$NOMGEO))) 
                     )
                   ),
@@ -109,6 +117,10 @@ server <- function(input, output, session) {
     updateSelectInput(session,"municipio", selected = input$mapa_shape_click)
   })
   
+  observeEvent(slctDiag(),{
+    updateProgressBar(session, "progreso", value = nrow(slctDiag()), total = round(sum(as.numeric(slctMun()$TVIVPARHAB))*.01))
+  })
+  
   slctMun <- eventReactive(input$municipio,{
     req(input$municipio)
     municipio %>% filter(NOMGEO == input$municipio)
@@ -123,7 +135,14 @@ server <- function(input, output, session) {
   observeEvent(select(),{
     shinyjs::show("regresar")
     
+    updateProgressBar(session, "progreso", value = nrow(dialogos), total = round(sum(as.numeric(municipio$TVIVPARHAB))*.01))
     bbox <- st_bbox(slctMun())
+    content <- glue::glue("<b> Municipio: </b> {input$municipio} <br>
+                          <b> Viviendas habitadas: </b> {scales::comma(as.numeric(slctMun()$TVIVPARHAB))} <br>
+                          <b> Población total: </b> {scales::comma(as.numeric(slctMun()$POBTOT))} <br>
+                          <b> Número de Diálogos: </b> {nrow(slctDiag())} <br>
+                          <b> Conocimiento: </b> {scales::percent(runif(1))}
+                          ")
     mapa %>% 
       hideGroup("municipio") %>%
       clearGroup("seleccionMun") %>%
@@ -134,10 +153,16 @@ server <- function(input, output, session) {
       addPolygons(data = slctMun(),  fill = F,
                   stroke = T,weight = 3, color = "black", group = "seleccionMun") %>% 
       addPolygons(data = select(),  stroke = T, weight = 1, color = ~pal(categoria),
-                  label = ~CVE_AGEB, 
+                  label = ~CVE_AGEB, popup = ~glue::glue("<b> AGEB: </b> {CVE_AGEB} <br>
+                          <b> Viviendas habitadas: </b> {scales::comma(as.numeric(TVIVPARHAB))} <br>
+                          <b> Población total: </b> {scales::comma(as.numeric(POBTOT))}
+                          "),
                   group = "seleccionAgeb") %>% 
       addCircleMarkers(data = slctDiag(), radius = 1, clusterOptions = markerClusterOptions(),
-                       group = "Diálogos")
+                       group = "Diálogos") %>% 
+      addPopups(mean(c(bbox[[1]],bbox[[3]])), bbox[[4]], content,
+                options = popupOptions(closeButton = FALSE)
+      )
   })
   
   observeEvent(input$regresar,{
