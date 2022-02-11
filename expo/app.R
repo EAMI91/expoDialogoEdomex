@@ -115,7 +115,9 @@ server <- function(input, output, session) {
   mapa <- leafletProxy("mapa")
   
   observeEvent(input$mapa_shape_click,{
-    updateSelectInput(session,"municipio", selected = input$mapa_shape_click)
+    if(input$mapa_shape_click$group == "municipio"){
+      updateSelectInput(session,"municipio", selected = input$mapa_shape_click)  
+    }
   })
   
   observeEvent(slctDiag(),{
