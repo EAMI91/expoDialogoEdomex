@@ -15,7 +15,8 @@ library(shinydashboard)
 library(tidyverse)
 library(shinyWidgets)
 censo <- read_csv("data/censo.csv")
-
+# censo %>% filter(NOM_LOC %in% c("Total AGEB urbana","Total del municipio")) %>% select(MUN, AGEB, NOM_LOC, POBTOT, TVIVPARHAB) %>%
+#   write_excel_csv("data/censo.csv")
 ageb <- rgdal::readOGR(dsn="data/15a.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
   mutate(categoria = sample(c("grupo 1", "grupo 2", "grupo 3"),prob = c(.2,.55,.35), replace = T, size = nrow(.))) %>% 
@@ -135,7 +136,7 @@ server <- function(input, output, session) {
   observeEvent(select(),{
     shinyjs::show("regresar")
     
-    updateProgressBar(session, "progreso", value = nrow(dialogos), total = round(sum(as.numeric(municipio$TVIVPARHAB))*.01))
+    
     bbox <- st_bbox(slctMun())
     content <- glue::glue("<b> Municipio: </b> {input$municipio} <br>
                           <b> Viviendas habitadas: </b> {scales::comma(as.numeric(slctMun()$TVIVPARHAB))} <br>
@@ -148,6 +149,7 @@ server <- function(input, output, session) {
       clearGroup("seleccionMun") %>%
       clearGroup("seleccionAgeb") %>%
       clearGroup("Diálogos") %>%
+      clearGroup("texto") %>%
       showGroup("entidad") %>%
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addPolygons(data = slctMun(),  fill = F,
@@ -161,12 +163,13 @@ server <- function(input, output, session) {
       addCircleMarkers(data = slctDiag(), radius = 1, clusterOptions = markerClusterOptions(),
                        group = "Diálogos") %>% 
       addPopups(mean(c(bbox[[1]],bbox[[3]])), bbox[[4]], content,
-                options = popupOptions(closeButton = FALSE)
+                options = popupOptions(closeButton = FALSE),group = "texto"
       )
   })
   
   observeEvent(input$regresar,{
     updateSelectInput(session,"municipio", selected = "")
+    updateProgressBar(session, "progreso", value = nrow(dialogos), total = round(sum(as.numeric(municipio$TVIVPARHAB))*.01))
     shinyjs::hide("regresar")
     bbox <- st_bbox(entidad)
     mapa %>% 
@@ -174,6 +177,7 @@ server <- function(input, output, session) {
       showGroup("municipio") %>% 
       clearGroup("seleccionMun") %>% 
       clearGroup("seleccionAgeb") %>% 
+      clearGroup("texto") %>%
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addCircleMarkers(data = dialogos, radius = 1, clusterOptions = markerClusterOptions(), group = "Diálogos")
     
