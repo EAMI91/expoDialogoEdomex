@@ -19,19 +19,33 @@ censo <- read_csv("data/censo.csv")
 #   write_excel_csv("data/censo.csv")
 ageb <- rgdal::readOGR(dsn="data/15a.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.))) %>% 
+  mutate(IRS = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), 
+                      replace = T, size = nrow(.)),
+         apoyo1 = sample(seq(from = 0, to = .78, by = .08),
+                         prob = rnorm(n=10) %>%  abs(), 
+                         replace = T, size = nrow(.)),
+         apoyo2 = sample(seq(from = 0, to = .22, by = .02),
+                         prob = rnorm(n=12) %>%  abs(), 
+                         replace = T, size = nrow(.))) %>% 
   left_join(censo %>% filter(NOM_LOC == "Total AGEB urbana") %>% 
-                     transmute(CVE_MUN = MUN, CVE_AGEB = AGEB, POBTOT, TVIVPARHAB))
+              transmute(CVE_MUN = MUN, CVE_AGEB = AGEB, POBTOT, TVIVPARHAB))
 
 
-cat_pct <- ageb %>% as_tibble %>% count(categoria) %>% mutate(pct = n/sum(n))
+cat_pct <- ageb %>% as_tibble %>% count(IRS) %>% mutate(pct = n/sum(n))
 
 entidad <- rgdal::readOGR(dsn="data/15ent.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf()
 
 municipio <- rgdal::readOGR(dsn="data/15mun.shp",encoding = "CP1252") %>% 
   sp::spTransform(sp::CRS("+init=epsg:4326")) %>% sf::st_as_sf() %>% 
-  mutate(categoria = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35), replace = T, size = nrow(.))) %>% 
+  mutate(IRS = sample(c("Bajo", "Medio", "Alto"),prob = c(.2,.55,.35),
+                      replace = T, size = nrow(.)),
+         apoyo1 = sample(seq(from = 0, to = .78, by = .08),
+                         prob = rnorm(n=10) %>%  abs(), 
+                         replace = T, size = nrow(.)),
+         apoyo2 = sample(seq(from = 0, to = .22, by = .02),
+                         prob = rnorm(n=12) %>%  abs(), 
+                         replace = T, size = nrow(.))) %>% 
   left_join(censo %>% filter(NOM_LOC == "Total del municipio") %>% 
               transmute(CVE_MUN = MUN, POBTOT, TVIVPARHAB))
 
@@ -57,7 +71,7 @@ ui <- tagList(
       tabItems(
         tabItem(tabName = "mapa", 
                 tagList(
-                    
+                  
                   fluidRow(
                     column(7,
                            progressBar(id = "progreso", value = nrow(dialogos), total = round(sum(as.numeric(municipio$TVIVPARHAB))*.01), 
@@ -75,9 +89,14 @@ ui <- tagList(
                     ),
                     column(5,
                            fluidRow(
-                             column(12, class = "shadowBox",
+                             column(6, class = "shadowBox",
                                     shinycssloaders::withSpinner(
                                       plotOutput("barras",height = 400)
+                                    )        
+                             ),
+                             column(6, class = "shadowBox",
+                                    shinycssloaders::withSpinner(
+                                      plotOutput("area",height = 400)
                                     )        
                              )
                            ),
@@ -103,12 +122,12 @@ server <- function(input, output, session) {
     leaflet(municipio) %>% addProviderTiles("CartoDB.Positron") %>% 
       addPolygons(data = entidad, stroke = F, color = "gray50", group = "entidad") %>%
       hideGroup("entidad") %>% 
-      addPolygons(stroke = T,weight = .5, color = ~pal(categoria),
+      addPolygons(stroke = T,weight = .5, color = ~pal(IRS),
                   label = ~NOMGEO, layerId = ~NOMGEO, group = "municipio",
                   highlightOptions = highlightOptions(weight = 2, 
                                                       bringToFront = T, color = "#db4471", opacity = 1)) %>% 
       addCircleMarkers(data = dialogos, radius = 1, clusterOptions = markerClusterOptions(), group = "Diálogos") %>% 
-      addLegend(pal = pal, values = ~categoria) %>% 
+      addLegend(pal = pal, values = ~IRS) %>% 
       addLayersControl(overlayGroups = c("Diálogos"))
   })
   
@@ -156,7 +175,7 @@ server <- function(input, output, session) {
       flyToBounds(bbox[[1]], bbox[[2]], bbox[[3]], bbox[[4]]) %>% 
       addPolygons(data = slctMun(),  fill = F,
                   stroke = T,weight = 3, color = "black", group = "seleccionMun") %>% 
-      addPolygons(data = select(),  stroke = T, weight = 1, color = ~pal(categoria),
+      addPolygons(data = select(),  stroke = T, weight = 1, color = ~pal(IRS),
                   label = ~CVE_AGEB, popup = ~glue::glue("<b> AGEB: </b> {CVE_AGEB} <br>
                           <b> Viviendas habitadas: </b> {scales::comma(as.numeric(TVIVPARHAB))} <br>
                           <b> Población total: </b> {scales::comma(as.numeric(POBTOT))}
@@ -187,9 +206,9 @@ server <- function(input, output, session) {
   
   output$barras <- renderPlot({
     if(input$municipio != ""){
-      select() %>% as_tibble %>% count(categoria) %>% mutate(color = pal(categoria),
-                                                             pct = n/sum(n)) %>% 
-        ggplot(aes(x = reorder(categoria,n), y = pct)) + 
+      select() %>% as_tibble %>% count(IRS) %>% mutate(color = pal(IRS),
+                                                       pct = n/sum(n)) %>% 
+        ggplot(aes(x = reorder(IRS,n), y = pct)) + 
         ggchicklet::geom_chicklet(aes(fill = color), width = .5, alpha = .5) + 
         geom_errorbar(data = cat_pct, aes(ymin = pct, ymax =pct )) +
         coord_flip() +
@@ -199,15 +218,59 @@ server <- function(input, output, session) {
         theme_minimal()+
         theme(panel.grid.major.y= element_blank())
     } else{
-      municipio %>% as_tibble %>% count(categoria) %>%
-        mutate(color = pal(categoria)) %>% 
-        ggplot(aes(x = reorder(categoria, n), y = n, fill = color)) +
+      municipio %>% as_tibble %>% count(IRS) %>%
+        mutate(color = pal(IRS)) %>% 
+        ggplot(aes(x = reorder(IRS, n), y = n, fill = color)) +
         ggchicklet::geom_chicklet(width = .5, alpha = .5) +
         coord_flip() +
         scale_fill_identity() +
-        labs(y = "Municipios", x = NULL, title =  "Índice de rezago social") +
+        labs(y = "Municipios", x = NULL, title =  "Índice de rezago social (IRS)") +
         theme_minimal()+
         theme(panel.grid.major.y= element_blank())
+    }
+    
+  })
+  
+  output$area <- renderPlot({
+    if(input$municipio != ""){
+      # browser()
+      select() %>% as_tibble %>%  mutate(total_apoyo = apoyo1+apoyo2) %>%
+        mutate(total_apoyo = apoyo1+apoyo2) %>% 
+        gather(grupo, apoyo,apoyo1:apoyo2 ) %>% 
+        mutate(grupo = case_when(grupo =="apoyo1"~"Apoyo previo",
+                                 grupo== "apoyo2"~"Apoyo posterior")) %>% 
+        ggplot(aes(x = fct_reorder(CVE_AGEB, apoyo), y = apoyo,
+                   group = grupo, fill = grupo)) +
+        # ggchicklet::geom_chicklet(width = 1, alpha = .5) +
+        geom_area(stat = "identity", alpha = .9)+
+        labs(x = "Agebs", y = NULL, fill = NULL,
+             title =  "Apoyo previo y posterior") +
+        scale_y_continuous(labels = scales::percent) +
+        theme_minimal()+
+        theme(panel.grid.minor = element_blank(),
+              panel.grid.major.x= element_blank(),
+              legend.position = "bottom",
+              axis.text.x=element_blank(),
+              axis.ticks.x=element_blank())
+    } else{
+      municipio %>% as_tibble %>% 
+        mutate(total_apoyo = apoyo1+apoyo2) %>% 
+        gather(grupo, apoyo,apoyo1:apoyo2 ) %>% 
+        mutate(grupo = case_when(grupo =="apoyo1"~"Apoyo previo",
+                                 grupo== "apoyo2"~"Apoyo posterior")) %>% 
+        ggplot(aes(x = fct_reorder(CVE_MUN, apoyo), y = apoyo,
+                   group = grupo, fill = grupo)) +
+        # ggchicklet::geom_chicklet(width = 1, alpha = .5) +
+        geom_area(stat = "identity", alpha = .9)+
+        labs(x = "Municipios", y = NULL, fill = NULL,
+             title =  "Apoyo previo y posterior") +
+        scale_y_continuous(labels = scales::percent) +
+        theme_minimal()+
+        theme(panel.grid.minor = element_blank(),
+          panel.grid.major.x= element_blank(),
+              legend.position = "bottom",
+              axis.text.x=element_blank(),
+              axis.ticks.x=element_blank())
     }
     
   })
@@ -226,13 +289,13 @@ server <- function(input, output, session) {
     aux <- slctDiag() %>% as_tibble  %>% dplyr::select(contains("a_")) %>% names %>%  
       map_df(~slctDiag() %>% as_tibble %>% count(across(.x)) %>% mutate(pct = n/sum(n),var = .x) %>% 
                rename(cat = 1)) %>% mutate(pct = if_else(cat == "Mala",-pct,pct))
-
-rectangulo <- if((aux %>% filter(cat == "Regular") %>% nrow) > 0) geom_rect(data = aux %>% filter(cat == "Regular"), 
-                aes(xmin = as.numeric(factor(var))-.3,
-                    xmax = as.numeric(factor(var))+.3, 
-                    ymin = 1,ymax = 1+pct, fill = cat),
-                alpha= .7, show.legend = F) else NULL
-
+    
+    rectangulo <- if((aux %>% filter(cat == "Regular") %>% nrow) > 0) geom_rect(data = aux %>% filter(cat == "Regular"), 
+                                                                                aes(xmin = as.numeric(factor(var))-.3,
+                                                                                    xmax = as.numeric(factor(var))+.3, 
+                                                                                    ymin = 1,ymax = 1+pct, fill = cat),
+                                                                                alpha= .7, show.legend = F) else NULL
+    
     aux %>% filter(cat != "Regular") %>% group_by(var) %>%
       mutate(nps = case_when(cat == "Buena"~pct, T~0), nps = sum(nps)) %>%
       ungroup() %>% 
@@ -247,8 +310,8 @@ rectangulo <- if((aux %>% filter(cat == "Regular") %>% nrow) > 0) geom_rect(data
                                    "Buena" = "#023047",
                                    "Regular" = "gray"))+
       scale_x_discrete(labels=c("a_1" = "De 18 a 29", "a_2" = "De 30 a 39",
-                               "a_3" = "De 40 a 49", "a_4" = "De 50 a 59",
-                               "a_5" = "60 y más"))+
+                                "a_3" = "De 40 a 49", "a_4" = "De 50 a 59",
+                                "a_5" = "60 y más"))+
       scale_y_continuous(labels=scales::percent_format(accuracy = 1))+
       coord_flip() +
       labs(x = NULL, y = NULL, fill = NULL, title = "Opinión por grupos de edad") + 
@@ -264,3 +327,4 @@ rectangulo <- if((aux %>% filter(cat == "Regular") %>% nrow) > 0) geom_rect(data
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+
