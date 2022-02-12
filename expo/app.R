@@ -91,12 +91,12 @@ ui <- tagList(
                            fluidRow(
                              column(6, class = "shadowBox",
                                     shinycssloaders::withSpinner(
-                                      plotOutput("barras",height = 400)
+                                      plotOutput("barras",height = 370)
                                     )        
                              ),
                              column(6, class = "shadowBox",
                                     shinycssloaders::withSpinner(
-                                      plotOutput("area",height = 400)
+                                      plotOutput("area",height = 370)
                                     )        
                              )
                            ),
@@ -327,4 +327,3 @@ server <- function(input, output, session) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
