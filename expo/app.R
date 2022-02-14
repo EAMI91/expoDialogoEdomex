@@ -247,12 +247,12 @@ server <- function(input, output, session) {
         ggplot(aes(x = fct_reorder(CVE_AGEB, apoyo), y = apoyo,
                    group = grupo, fill = grupo)) +
         # ggchicklet::geom_chicklet(width = 1, alpha = .5) +
-        geom_area(stat = "identity", alpha = .7)+
+        geom_area(stat = "identity", alpha = .85)+
         labs(x = "Agebs", y = NULL, fill = NULL,
              title =  "Apoyo previo y posterior") +
         scale_y_continuous(labels = scales::percent) +
-        scale_fill_manual(values = c("Apoyo previo" = "#023047",
-                                     "Apoyo posterior" = "#219EBC"))+
+        scale_fill_manual(values = c("Apoyo previo" = "#7C33BC",
+                                     "Apoyo posterior" = "#C77DFF"))+
         theme_minimal()+
         theme(panel.grid.minor = element_blank(),
               panel.grid.major.x= element_blank(),
@@ -269,12 +269,12 @@ server <- function(input, output, session) {
         ggplot(aes(x = fct_reorder(CVE_MUN, apoyo), y = apoyo,
                    group = grupo, fill = grupo)) +
         # ggchicklet::geom_chicklet(width = 1, alpha = .5) +
-        geom_area(stat = "identity", alpha = .7)+
+        geom_area(stat = "identity", alpha = .85)+
         labs(x = "Municipios", y = NULL, fill = NULL,
              title =  "Apoyo previo y posterior") +
         scale_y_continuous(labels = scales::percent) +
-        scale_fill_manual(values = c("Apoyo previo" = "#023047",
-                                     "Apoyo posterior" = "#219EBC"))+
+        scale_fill_manual(values = c("Apoyo previo" = "#7C33BC",
+                                     "Apoyo posterior" = "#C77DFF"))+
         theme_minimal()+
         theme(panel.grid.minor = element_blank(),
               panel.grid.major.x= element_blank(),
