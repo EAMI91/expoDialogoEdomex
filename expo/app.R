@@ -298,7 +298,7 @@ server <- function(input, output, session) {
     
     
     aux <- slctDiag() %>% as_tibble  %>% dplyr::select(contains("a_")) %>% names %>%  
-      map_df(~slctDiag() %>% as_tibble %>% count(across(.x)) %>% mutate(pct = n/sum(n),var = .x) %>% 
+      map_df(~slctDiag() %>% as_tibble %>% count(across(all_of(.x))) %>% mutate(pct = n/sum(n),var = .x) %>% 
                rename(cat = 1)) %>% mutate(pct = if_else(cat == "Mala",-pct,pct))
     
     rectangulo <- if((aux %>% filter(cat == "Regular") %>% nrow) > 0) geom_rect(data = aux %>% filter(cat == "Regular"), 
