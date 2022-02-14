@@ -330,6 +330,7 @@ server <- function(input, output, session) {
       coord_flip() +
       labs(x = NULL, y = NULL, fill = NULL, title = "Opinión por grupos de edad") + 
       theme_minimal() + theme(legend.position = "bottom",
+                              panel.grid.minor = element_blank(),
                               panel.grid.major.y= element_blank(),
                               text = element_text(family = "Poppins"))+
       geom_hline(yintercept = 0, color = "#FFFFFF", size= .6)+
