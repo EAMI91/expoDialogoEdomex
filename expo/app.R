@@ -89,25 +89,26 @@ ui <- tagList(
                     ),
                     column(5,
                            fluidRow(
+                             column(12, class = "shadowBox",
+                                    shinycssloaders::withSpinner(
+                                      plotOutput("dif",height = 350)
+                                    )
+                             )
+                           ),
+                           fluidRow(
                              column(6, class = "shadowBox",
                                     shinycssloaders::withSpinner(
-                                      plotOutput("barras",height = 400)
+                                      plotOutput("barras",height = 250)
                                     )        
                              ),
                              column(6, class = "shadowBox",
                                     shinycssloaders::withSpinner(
-                                      plotOutput("area",height = 400)
+                                      plotOutput("area",height = 250)
                                     )        
-                             )
-                           ),
-                           fluidRow(
-                             column(12, class = "shadowBox",
-                                    shinycssloaders::withSpinner(
-                                      plotOutput("dif",height = 200)
-                                    )
                              )
                            )
                     )
+                    
                   )
                 )
         )
@@ -216,7 +217,9 @@ server <- function(input, output, session) {
         scale_y_continuous(labels = scales::percent) +
         labs(y = "Porcentaje de AGEB", x = NULL, title =  "Índice de rezago social") +
         theme_minimal()+
-        theme(panel.grid.major.y= element_blank())
+        theme(panel.grid.major.y= element_blank(),
+              panel.grid.minor = element_blank(),
+              text = element_text(family = "Poppins"))
     } else{
       municipio %>% as_tibble %>% count(IRS) %>%
         mutate(color = pal(IRS)) %>% 
@@ -224,9 +227,11 @@ server <- function(input, output, session) {
         ggchicklet::geom_chicklet(width = .5, alpha = .5) +
         coord_flip() +
         scale_fill_identity() +
-        labs(y = "Municipios", x = NULL, title =  "Índice de rezago social (IRS)") +
+        labs(y = "Municipios", x = NULL, title =  "Índice de rezago social") +
         theme_minimal()+
-        theme(panel.grid.major.y= element_blank())
+        theme(panel.grid.major.y= element_blank(),
+              panel.grid.minor = element_blank(),
+              text = element_text(family = "Poppins"))
     }
     
   })
@@ -242,16 +247,19 @@ server <- function(input, output, session) {
         ggplot(aes(x = fct_reorder(CVE_AGEB, apoyo), y = apoyo,
                    group = grupo, fill = grupo)) +
         # ggchicklet::geom_chicklet(width = 1, alpha = .5) +
-        geom_area(stat = "identity", alpha = .9)+
+        geom_area(stat = "identity", alpha = .7)+
         labs(x = "Agebs", y = NULL, fill = NULL,
              title =  "Apoyo previo y posterior") +
         scale_y_continuous(labels = scales::percent) +
+        scale_fill_manual(values = c("Apoyo previo" = "#023047",
+                                     "Apoyo posterior" = "#219EBC"))+
         theme_minimal()+
         theme(panel.grid.minor = element_blank(),
               panel.grid.major.x= element_blank(),
               legend.position = "bottom",
               axis.text.x=element_blank(),
-              axis.ticks.x=element_blank())
+              axis.ticks.x=element_blank(),
+              text = element_text(family = "Poppins"))
     } else{
       municipio %>% as_tibble %>% 
         mutate(total_apoyo = apoyo1+apoyo2) %>% 
@@ -261,16 +269,19 @@ server <- function(input, output, session) {
         ggplot(aes(x = fct_reorder(CVE_MUN, apoyo), y = apoyo,
                    group = grupo, fill = grupo)) +
         # ggchicklet::geom_chicklet(width = 1, alpha = .5) +
-        geom_area(stat = "identity", alpha = .9)+
+        geom_area(stat = "identity", alpha = .7)+
         labs(x = "Municipios", y = NULL, fill = NULL,
              title =  "Apoyo previo y posterior") +
         scale_y_continuous(labels = scales::percent) +
+        scale_fill_manual(values = c("Apoyo previo" = "#023047",
+                                     "Apoyo posterior" = "#219EBC"))+
         theme_minimal()+
         theme(panel.grid.minor = element_blank(),
           panel.grid.major.x= element_blank(),
               legend.position = "bottom",
               axis.text.x=element_blank(),
-              axis.ticks.x=element_blank())
+              axis.ticks.x=element_blank(),
+          text = element_text(family = "Poppins"))
     }
     
   })
@@ -309,14 +320,15 @@ server <- function(input, output, session) {
       scale_fill_manual(values = c("Mala" = "#DE6400",
                                    "Buena" = "#023047",
                                    "Regular" = "gray"))+
-      scale_x_discrete(labels=c("a_1" = "De 18 a 29", "a_2" = "De 30 a 39",
-                                "a_3" = "De 40 a 49", "a_4" = "De 50 a 59",
-                                "a_5" = "60 y más"))+
+      scale_x_discrete(labels=c("a_1" = "Candidato 1", "a_2" = "Candidato 2",
+                                "a_3" = "Candidato 3", "a_4" = "Candidato 4",
+                                "a_5" = "Candidato 5"))+
       scale_y_continuous(labels=scales::percent_format(accuracy = 1))+
       coord_flip() +
-      labs(x = NULL, y = NULL, fill = NULL, title = "Opinión por grupos de edad") + 
+      labs(x = NULL, y = NULL, fill = NULL, title = "Opinión de aspirantes") + 
       theme_minimal() + theme(legend.position = "bottom",
-                              panel.grid.major.y= element_blank())+
+                              panel.grid.major.y= element_blank(),
+                              text = element_text(family = "Poppins"))+
       geom_hline(yintercept = 0, color = "#FFFFFF", size= .6)+
       geom_hline(yintercept = 0, color = "gray", size= .6)+
       geom_hline(yintercept = 1, color = "#FFFFFF", size = 1.2)+
