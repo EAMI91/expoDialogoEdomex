@@ -277,11 +277,11 @@ server <- function(input, output, session) {
                                      "Apoyo posterior" = "#219EBC"))+
         theme_minimal()+
         theme(panel.grid.minor = element_blank(),
-          panel.grid.major.x= element_blank(),
+              panel.grid.major.x= element_blank(),
               legend.position = "bottom",
               axis.text.x=element_blank(),
               axis.ticks.x=element_blank(),
-          text = element_text(family = "Poppins"))
+              text = element_text(family = "Poppins"))
     }
     
   })
@@ -323,7 +323,10 @@ server <- function(input, output, session) {
       scale_x_discrete(labels=c("a_1" = "De 18 a 29", "a_2" = "De 30 a 39",
                                 "a_3" = "De 40 a 49", "a_4" = "De 50 a 59",
                                 "a_5" = "60 y más"))+
-      scale_y_continuous(labels=scales::percent_format(accuracy = 1))+
+      scale_y_continuous(
+        # labels=scales::percent_format(accuracy = 1),
+        breaks = c(-.5, 0, .5, 1, 1.2),
+        labels = c("-50%", "0%", "50%", "0%", "20%"))+
       coord_flip() +
       labs(x = NULL, y = NULL, fill = NULL, title = "Opinión por grupos de edad") + 
       theme_minimal() + theme(legend.position = "bottom",
