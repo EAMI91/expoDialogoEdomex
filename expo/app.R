@@ -320,12 +320,12 @@ server <- function(input, output, session) {
       scale_fill_manual(values = c("Mala" = "#DE6400",
                                    "Buena" = "#023047",
                                    "Regular" = "gray"))+
-      scale_x_discrete(labels=c("a_1" = "Candidato 1", "a_2" = "Candidato 2",
-                                "a_3" = "Candidato 3", "a_4" = "Candidato 4",
-                                "a_5" = "Candidato 5"))+
+      scale_x_discrete(labels=c("a_1" = "De 18 a 29", "a_2" = "De 30 a 39",
+                                "a_3" = "De 40 a 49", "a_4" = "De 50 a 59",
+                                "a_5" = "60 y más"))+
       scale_y_continuous(labels=scales::percent_format(accuracy = 1))+
       coord_flip() +
-      labs(x = NULL, y = NULL, fill = NULL, title = "Opinión de aspirantes") + 
+      labs(x = NULL, y = NULL, fill = NULL, title = "Opinión por grupos de edad") + 
       theme_minimal() + theme(legend.position = "bottom",
                               panel.grid.major.y= element_blank(),
                               text = element_text(family = "Poppins"))+
